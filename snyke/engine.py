@@ -1,5 +1,4 @@
 import dataclasses
-import sys
 
 from dataclasses import dataclass
 from enum import Enum
@@ -7,13 +6,39 @@ from enum import Enum
 from typing import List, Tuple
 
 
+'''Coordinate
+'''
 @dataclass
 class Coord:
     col: int
     row: int
 
 
+''' Cell
+'''
+Cell = Enum('cell', ['EMPTY', 'SNAKE', 'FOOD'])
+
+
+''' Dimension
+'''
+@dataclass
+class Dimension:
+    width: int
+    height: int
+
+
+''' Direction
+'''
 Direction = Enum('Direction', ['UP', 'DOWN', 'RIGHT', 'LEFT'])
+
+
+class AbstractView:
+
+    def __init__(self):
+        super().__init__()
+
+    def draw(self, board: List[List[Cell]], dim: Dimension):
+        raise NotImplemented
 
 
 class Snake:
@@ -88,24 +113,21 @@ class Snake:
             return
 
 
-Cell = Enum('cell', ['EMPTY', 'SNAKE', 'FOOD'])
-
-
 class Engine:
 
-    def __init__(self, dim: int, nsnakes: int, snake_len: int, food_interval: int):
+    def __init__(self, view: AbstractView, dim: Dimension, nsnakes: int, snake_len: int, food_interval: int):
         super().__init__()
 
+        self._view = view
         self._dim = dim
-        self._board: List[List[Cell]] = [[Cell.EMPTY for x in range(dim)] for y in range(dim)]
+        self._board: List[List[Cell]] = [[Cell.EMPTY for x in range(dim.width)] for y in range(dim.height)]
         self._food_interval = food_interval
         self._next_food = food_interval
 
-        snake_spacing = dim // (nsnakes+ 1)
-        head_position = (dim  + snake_len) // 2
+        snake_spacing = dim.width // (nsnakes+ 1)
+        head_position = (dim.height  + snake_len) // 2
 
-        self._snakes = [Snake(Coord(head_position, snake_spacing * (i + 1)), snake_len, Direction.UP) for i in range(nsnakes)]
-        #import pdb;pdb.set_trace()
+        self._snakes = [Snake(Coord(snake_spacing * (i + 1), head_position), snake_len, Direction.UP) for i in range(nsnakes)]
 
     @property
     def dim(self):
@@ -134,11 +156,13 @@ class Engine:
         for row_idx, row in enumerate(self._board):
             for col_idx, col in enumerate(row):
 
-                self._board[col_idx][row_idx] = Cell.EMPTY
+                self._board[row_idx][col_idx] = Cell.EMPTY
 
                 for snake in self._snakes:
                     if snake.contains(Coord(col_idx, row_idx)):
-                        self._board[col_idx][row_idx] = Cell.SNAKE
+                        self._board[row_idx][col_idx] = Cell.SNAKE
+
+        self._view.draw(self._board, self._dim)
 
     def _update_snakes(self, inputs: List[Tuple[int, Direction]]):
         for idx, direction in inputs:
@@ -164,66 +188,3 @@ class Engine:
             return
 
         self._next_food = self._food_interval
-
-class Renderer:
-
-    def __init__(self):
-        super().__init__()
-
-    def move(self, c: Coord):
-        raise NotImplementedError
-
-    def draw_snake_segment(self, c: Coord):
-        raise NotImplementedError
-
-    def draw_food(self, c: Coord):
-        raise NotImplementedError
-
-
-class View:
-
-    def __init__(self):
-        super().__init__()
-
-    def draw(self, engine):
-        self._clear_screen()
-        self._outline(engine.dim)
-        self._draw_board(engine.board)
-
-        sys.stdout.flush()
-
-    def _clear_screen(self):
-        sys.stdout.write('\033[2J')
-
-    def _outline(self, dim):
-        horiz = '+' + '-'*dim + '+'
-        vert = '|' + ' '*dim + '|'
-
-        line_offset = 1
-        self._move(Coord(0, line_offset))
-        sys.stdout.write(horiz)
-
-        for i in range(dim):
-            self._move(Coord(0, line_offset  + i + 1))
-            sys.stdout.write(vert)
-
-        self._move(Coord(0, line_offset + i + 1))
-        sys.stdout.write(horiz)
-
-    def _draw_board(self, board: List[List[Cell]]):
-        for col, cells in enumerate(board): # y: List[Cell]
-            for row, cell in enumerate(cells):
-                self._move(Coord(col, row))
-
-                if cell is Cell.SNAKE:
-                    sys.stdout.write('@')
-                elif cell is Cell.FOOD:
-                    sys.stdout.write('0')
-
-
-    def _move(self, c: Coord):
-        sys.stdout.write(f'\033[{c.row};{c.col}H')
-
-    def _put_symbol(self, c: Coord, sym: str):
-        self._move(c)
-        sys.stdout.write(sym)
