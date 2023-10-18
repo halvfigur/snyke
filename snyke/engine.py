@@ -141,8 +141,8 @@ class Engine:
                         self._board[col_idx][row_idx] = Cell.SNAKE
 
     def _update_snakes(self, inputs: List[Tuple[int, Direction]]):
-        for snake, direction in inputs:
-            self._snakes[snake].direction = direction
+        for idx, direction in inputs:
+            self._snakes[idx].direction = direction
 
         for snake in self._snakes:
             snake.move()
