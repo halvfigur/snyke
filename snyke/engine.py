@@ -91,6 +91,10 @@ class Snake:
         
         return c in self._cells
 
+    def collides_with_boundary(self, boundary: Dimension) -> bool:
+        return not ((0 < self.head.row < boundary.height) and  \
+                    (0 < self.head.col < boundary.width))
+
     def collides_with_snake(self, snake: 'Snake') -> bool:
         if self is snake:
             return self.head in self._cells[1:]
@@ -98,7 +102,7 @@ class Snake:
         return self._head in snake._cells
 
     def collides_with_food(self, food: Food) -> bool:
-        return self._head == food.coord
+        return self.head == food.coord
 
     def move(self):
         head = self._cells[0]
@@ -234,7 +238,6 @@ class Engine:
                     if snake.contains(coord):
                         self._board[row_idx][col_idx] = Cell.SNAKE
 
-
                 # find an empty position to hold food
                 if self._board[row_idx][col_idx] == Cell.EMPTY:
                     if food_coord is None:
@@ -259,21 +262,18 @@ class Engine:
     def _collision_detect(self) -> List[int]:
         collisions: List[int] = []
 
-        '''
-        heads = [snake.head for snake in self._snakes]
-
-        for i, head in enumerate(heads):
-            for snake in self._snakes:
-                disregard_head = snake.head == head
-                if snake.contains(head, disregard_head):
-                    collisions.append(i)
-        '''
-
         for i, snake in enumerate(self._snakes):
+            # Does the snake collide with the board boundary?
+            if snake.collides_with_boundary(self._dim):
+                collisions.append(i)
+                continue
+
+            # Does the snake collide with itself or another snake?
             for other in self._snakes:
                 if snake.collides_with_snake(other):
                     collisions.append(i)
 
+            # Does the snake collide with any food item?
             for food in self._food:
                 if snake.collides_with_food(food):
                     self._food.remove(food)
