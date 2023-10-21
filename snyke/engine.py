@@ -216,16 +216,6 @@ class Engine:
         for snake in self._snakes:
             snake.move()
 
-            for food in self._food:
-                if food.coord != snake.head:
-                    continue
-
-                self._food.remove(food)
-                snake.grow(5)
-
-                # increase speed
-                self._step_dt -= 2
-
         food_coord: Coord = None
         i = 0
 
@@ -279,10 +269,18 @@ class Engine:
                     collisions.append(i)
         '''
 
-        for i, alpha in enumerate(self._snakes):
-            for beta in self._snakes:
-                if alpha.collides_with_snake(beta):
+        for i, snake in enumerate(self._snakes):
+            for other in self._snakes:
+                if snake.collides_with_snake(other):
                     collisions.append(i)
+
+            for food in self._food:
+                if snake.collides_with_food(food):
+                    self._food.remove(food)
+                    snake.grow(5)
+
+                    # increase speed
+                    self._step_dt -= 2
 
         return collisions
 
