@@ -5,7 +5,7 @@ from enum import Enum
 
 import random
 import time
-from typing import Mapping, List, Tuple, overload
+from typing import Mapping, List, Tuple, Optional, overload
 
 
 '''Coordinate
@@ -29,6 +29,21 @@ class Dimension:
     height: int
 
 
+''' State
+'''
+@dataclass
+class State:
+
+    # The points collected by each snake
+    points: List[int]
+
+    # The indices of snakes that have collided a wall or a snake (including itself)
+    collisions: List[int]
+
+    # Is the game over
+    is_game_over: bool
+
+
 ''' Direction
 '''
 Direction = Enum('Direction', ['UP', 'DOWN', 'RIGHT', 'LEFT'])
@@ -40,7 +55,7 @@ class AbstractView:
         super().__init__()
 
     @overload
-    def draw(self, board: List[List[Cell]], dim: Dimension):
+    def draw(self, board: List[List[Cell]], state: State):
         raise NotImplemented
 
 
@@ -60,6 +75,7 @@ class Snake:
         super().__init__()
         self._cells = self._create(head, length, direction)
         self._direction = direction
+        self._points = 0
 
     def _create(self, head: Coord, length: int, direction: Direction) -> List[Coord]:
         col_offset = 0
@@ -81,43 +97,15 @@ class Snake:
         for i in range(n):
             self._cells.append(dataclasses.replace(tail))
 
+        self._points += n
+
     @property
     def head(self):
         return self._cells[0]
 
-    def contains(self, c: Coord, disregard_head: bool=False) -> bool:
-        if disregard_head:
-            return c in self._cells[1:]
-        
-        return c in self._cells
-
-    def collides_with_boundary(self, boundary: Dimension) -> bool:
-        return not ((0 < self.head.row < boundary.height) and  \
-                    (0 < self.head.col < boundary.width))
-
-    def collides_with_snake(self, snake: 'Snake') -> bool:
-        if self is snake:
-            return self.head in self._cells[1:]
-
-        return self._head in snake._cells
-
-    def collides_with_food(self, food: Food) -> bool:
-        return self.head == food.coord
-
-    def move(self):
-        head = self._cells[0]
-        new_head: Coord
-
-        if self._direction is Direction.UP:
-            new_head = Coord(head.col, head.row-1)
-        elif self._direction is Direction.DOWN:
-            new_head = Coord(head.col, head.row+1)
-        elif self._direction is Direction.LEFT:
-            new_head = Coord(head.col-1, head.row)
-        else:
-            new_head = Coord(head.col+1, head.row)
-
-        self._cells = [new_head, *self._cells[:-1]]
+    @property
+    def points(self):
+        return self._points
 
     @property
     def direction(self) -> Direction:
@@ -140,6 +128,42 @@ class Snake:
         if d is Direction.LEFT and self._direction is not Direction.RIGHT:
             self._direction = d
             return
+
+    def contains(self, c: Coord, disregard_head: bool=False) -> bool:
+        if disregard_head:
+            return c in self._cells[1:]
+        
+        return c in self._cells
+
+    def collides_with_boundary(self, boundary: Dimension) -> bool:
+        return not ((0 < self.head.row < boundary.height) and  \
+                    (0 < self.head.col < boundary.width))
+
+    def collides_with_snake(self, snake: 'Snake') -> bool:
+        if self is snake:
+            return self.head in self._cells[1:]
+
+        return self.head in snake._cells
+
+    def collides_with_food(self, food: Food) -> bool:
+        return self.head == food.coord
+
+    def move(self):
+        head = self._cells[0]
+        new_head: Coord
+
+        if self._direction is Direction.UP:
+            new_head = Coord(head.col, head.row-1)
+        elif self._direction is Direction.DOWN:
+            new_head = Coord(head.col, head.row+1)
+        elif self._direction is Direction.LEFT:
+            new_head = Coord(head.col-1, head.row)
+        else:
+            new_head = Coord(head.col+1, head.row)
+
+        self._cells = [new_head, *self._cells[:-1]]
+
+        self._points += 1
 
 
 class Engine:
@@ -166,6 +190,9 @@ class Engine:
         self._food: List[Food] = []
         self._food_interval = food_interval
 
+        ''' State things '''
+        self._state = State([], [], False)
+
         ''' Time and periodic events '''
         self._step_ts = 0
         self._step_dt = 100
@@ -189,12 +216,12 @@ class Engine:
         direction of each included snake. The direction is from the perspective
         of the player and not the snake.
     '''
-    def step(self, ts: int, inputs: List[Tuple[int, Direction]]=[]) -> bool:
+    def step(self, ts: int, inputs: List[Tuple[int, Direction]]=[]) -> State:
         # Always update the snake inputs or the game will feel unresponsive
         self._update_snake_inputs(inputs)
 
         if ts - self._step_ts < self._step_dt:
-            return
+            return self._state
 
         self._step_ts = ts
 
@@ -203,24 +230,23 @@ class Engine:
             add_food = True
             self._food_ts = ts
 
-        collisions = self._update_game_state(add_food)
-        if len(collisions) > 0:
-            return True
+        self._state = self._update_game_state(add_food)
 
-        self._view.draw(self._board, self._dim)
+        if not self._state.is_game_over:
+            self._view.draw(self._board, self._state)
 
-        return False
+        return self._state
 
 
     def _update_snake_inputs(self, inputs: List[Tuple[int, Direction]]):
         for idx, direction in inputs:
             self._snakes[idx].direction = direction
 
-    def _update_game_state(self, add_food: bool) -> List[int]:
+    def _update_game_state(self, add_food: bool) -> State:
         for snake in self._snakes:
             snake.move()
 
-        food_coord: Coord = None
+        food_coord: Coord
         i = 0
 
         for row_idx, row in enumerate(self._board):
@@ -240,9 +266,9 @@ class Engine:
 
                 # find an empty position to hold food
                 if self._board[row_idx][col_idx] == Cell.EMPTY:
-                    if food_coord is None:
-                        # If no coordinate has been selected yet then pick the
-                        # first one we find
+                    if i == 0:
+                        # If this is the first iteration set food_coord to the
+                        # current coordinate
                         food_coord = coord
                     elif random.randint(1, i) == 1:
                         # Let the probability be 1 in "number of iterations"
@@ -257,7 +283,10 @@ class Engine:
         for food in self._food:
             self._board[food.coord.row][food.coord.col] = Cell.FOOD
 
-        return self._collision_detect()
+        collisions = self._collision_detect()
+        points = [snake.points for snake in self._snakes]
+        game_over = len(collisions) > 0
+        return State(collisions, points, game_over)
 
     def _collision_detect(self) -> List[int]:
         collisions: List[int] = []
@@ -304,7 +333,7 @@ class PyGameView(AbstractView):
         self._sq_width = screen_sz[0] // dim.width
         self._sq_height = screen_sz[1] // dim.height
 
-    def draw(self, board: List[List[Cell]], dim: Dimension):
+    def draw(self, board: List[List[Cell]], state: State):
         self._draw_board(board)
 
     def _draw_board(self, board: List[List[Cell]]):
