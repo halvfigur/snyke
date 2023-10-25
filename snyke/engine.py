@@ -75,6 +75,7 @@ class Snake:
         super().__init__()
         self._cells = self._create(head, length, direction)
         self._direction = direction
+        self._next_direction = direction
         self._points = 0
 
     def _create(self, head: Coord, length: int, direction: Direction) -> List[Coord]:
@@ -114,19 +115,19 @@ class Snake:
     @direction.setter
     def direction(self, d: Direction):
         if d is Direction.UP and self._direction is not Direction.DOWN:
-            self._direction = d
+            self._next_direction = d
             return
 
         if d is Direction.DOWN and self._direction is not Direction.UP:
-            self._direction = d
+            self._next_direction = d
             return
 
         if d is Direction.RIGHT and self._direction is not Direction.LEFT:
-            self._direction = d
+            self._next_direction = d
             return
 
         if d is Direction.LEFT and self._direction is not Direction.RIGHT:
-            self._direction = d
+            self._next_direction = d
             return
 
     def contains(self, c: Coord, disregard_head: bool=False) -> bool:
@@ -151,6 +152,8 @@ class Snake:
     def move(self):
         head = self._cells[0]
         new_head: Coord
+
+        self._direction = self._next_direction
 
         if self._direction is Direction.UP:
             new_head = Coord(head.col, head.row-1)
@@ -232,8 +235,7 @@ class Engine:
 
         self._state = self._update_game_state(add_food)
 
-        if not self._state.is_game_over:
-            self._view.draw(self._board, self._state)
+        self._view.draw(self._board, self._state)
 
         return self._state
 
@@ -320,9 +322,14 @@ from pygame.locals import *
 
 class PyGameView(AbstractView):
 
-    def __init__(self, dim: Dimension, screen_sz: Tuple[int, int]):
+    def __init__(self, dim: Dimension, screen_sz=Tuple[int, int]):
         super().__init__()
-        self._surface = pygame.display.set_mode(screen_sz)
+
+
+        self._surface = pygame.display.set_mode((screen_sz[0], 100 + screen_sz[1]))
+        #self._board_surface = self._surface.subsurface(screen_sz)
+        self._score_surface = self._surface.subsurface((0, 0, screen_sz[0], 100))
+        self._board_surface = self._surface.subsurface((0, 100, screen_sz[0], screen_sz[1]))
 
         self._palette: Mapping[Cell, pygame.Color] = {
             Cell.EMPTY: pygame.Color(0, 0, 0),
@@ -334,16 +341,21 @@ class PyGameView(AbstractView):
         self._sq_height = screen_sz[1] // dim.height
 
     def draw(self, board: List[List[Cell]], state: State):
+        self._draw_score()
         self._draw_board(board)
+
+    def _draw_score(self):
+        gray = pygame.Color(128, 128, 128)
+        pygame.draw.rect(self._score_surface, gray, Rect(0, 0, self._score_surface.get_width(), self._score_surface.get_height()))
 
     def _draw_board(self, board: List[List[Cell]]):
         for row_idx, rows in enumerate(board):
             y = self._sq_height * row_idx
 
-            for col_idx, _ in enumerate(rows): # y: List[Cell]
+            for col_idx, _ in enumerate(rows):
                 x = self._sq_width * col_idx
 
                 cell = board[row_idx][col_idx]
                 color = self._palette[cell]
 
-                pygame.draw.rect(self._surface, color, Rect(x, y, self._sq_width, self._sq_height))
+                pygame.draw.rect(self._board_surface, color, Rect(x, y, self._sq_width, self._sq_height))
