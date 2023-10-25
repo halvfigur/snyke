@@ -8,32 +8,37 @@ import time
 from typing import Mapping, List, Tuple, Optional, overload
 
 
-'''Coordinate
-'''
+"""Coordinate
+"""
+
+
 @dataclass
 class Coord:
     col: int
     row: int
 
 
-''' Cell
-'''
-Cell = Enum('cell', ['EMPTY', 'SNAKE', 'FOOD'])
+""" Cell
+"""
+Cell = Enum("cell", ["EMPTY", "SNAKE", "FOOD"])
 
 
-''' Dimension
-'''
+""" Dimension
+"""
+
+
 @dataclass
 class Dimension:
     width: int
     height: int
 
 
-''' State
-'''
+""" State
+"""
+
+
 @dataclass
 class State:
-
     # The points collected by each snake
     points: List[int]
 
@@ -44,13 +49,12 @@ class State:
     is_game_over: bool
 
 
-''' Direction
-'''
-Direction = Enum('Direction', ['UP', 'DOWN', 'RIGHT', 'LEFT'])
+""" Direction
+"""
+Direction = Enum("Direction", ["UP", "DOWN", "RIGHT", "LEFT"])
 
 
 class AbstractView:
-
     def __init__(self):
         super().__init__()
 
@@ -60,7 +64,6 @@ class AbstractView:
 
 
 class Food:
-
     def __init__(self, coord: Coord):
         self._coord = coord
 
@@ -70,8 +73,12 @@ class Food:
 
 
 class Snake:
-
-    def __init__(self, head: Coord, length: int, direction: Direction,):
+    def __init__(
+        self,
+        head: Coord,
+        length: int,
+        direction: Direction,
+    ):
         super().__init__()
         self._cells = self._create(head, length, direction)
         self._direction = direction
@@ -88,10 +95,13 @@ class Snake:
             row_offset = -1
         elif direction is Direction.LEFT:
             col_offset = -1
-        else :
+        else:
             col_offset = 1
 
-        return [Coord(head.col + i * col_offset, head.row + i * row_offset) for i in range(length)]
+        return [
+            Coord(head.col + i * col_offset, head.row + i * row_offset)
+            for i in range(length)
+        ]
 
     def grow(self, n: int):
         tail = self._cells[-1]
@@ -130,17 +140,19 @@ class Snake:
             self._next_direction = d
             return
 
-    def contains(self, c: Coord, disregard_head: bool=False) -> bool:
+    def contains(self, c: Coord, disregard_head: bool = False) -> bool:
         if disregard_head:
             return c in self._cells[1:]
-        
+
         return c in self._cells
 
     def collides_with_boundary(self, boundary: Dimension) -> bool:
-        return not ((0 < self.head.row < boundary.height) and  \
-                    (0 < self.head.col < boundary.width))
+        return not (
+            (0 < self.head.row < boundary.height)
+            and (0 < self.head.col < boundary.width)
+        )
 
-    def collides_with_snake(self, snake: 'Snake') -> bool:
+    def collides_with_snake(self, snake: "Snake") -> bool:
         if self is snake:
             return self.head in self._cells[1:]
 
@@ -156,13 +168,13 @@ class Snake:
         self._direction = self._next_direction
 
         if self._direction is Direction.UP:
-            new_head = Coord(head.col, head.row-1)
+            new_head = Coord(head.col, head.row - 1)
         elif self._direction is Direction.DOWN:
-            new_head = Coord(head.col, head.row+1)
+            new_head = Coord(head.col, head.row + 1)
         elif self._direction is Direction.LEFT:
-            new_head = Coord(head.col-1, head.row)
+            new_head = Coord(head.col - 1, head.row)
         else:
-            new_head = Coord(head.col+1, head.row)
+            new_head = Coord(head.col + 1, head.row)
 
         self._cells = [new_head, *self._cells[:-1]]
 
@@ -170,33 +182,46 @@ class Snake:
 
 
 class Engine:
-
-    def __init__(self, view: AbstractView, dim: Dimension, nsnakes: int, snake_len: int, food_interval: int):
+    def __init__(
+        self,
+        view: AbstractView,
+        dim: Dimension,
+        nsnakes: int,
+        snake_len: int,
+        food_interval: int,
+    ):
         super().__init__()
 
         random.seed(time.time())
 
-        ''' View things '''
+        """ View things """
         self._view = view
         self._dim = dim
 
-        ''' Game things '''
-        self._board: List[List[Cell]] = [[Cell.EMPTY for x in range(dim.width)] for y in range(dim.height)]
+        """ Game things """
+        self._board: List[List[Cell]] = [
+            [Cell.EMPTY for x in range(dim.width)] for y in range(dim.height)
+        ]
         self._next_food = food_interval
 
-        ''' Snake(s) things '''
-        snake_spacing = dim.width // (nsnakes+ 1)
-        head_position = (dim.height  + snake_len) // 2
-        self._snakes = [Snake(Coord(snake_spacing * (i + 1), head_position), snake_len, Direction.UP) for i in range(nsnakes)]
+        """ Snake(s) things """
+        snake_spacing = dim.width // (nsnakes + 1)
+        head_position = (dim.height + snake_len) // 2
+        self._snakes = [
+            Snake(
+                Coord(snake_spacing * (i + 1), head_position), snake_len, Direction.UP
+            )
+            for i in range(nsnakes)
+        ]
 
-        ''' Food things '''
+        """ Food things """
         self._food: List[Food] = []
         self._food_interval = food_interval
 
-        ''' State things '''
+        """ State things """
         self._state = State([], [], False)
 
-        ''' Time and periodic events '''
+        """ Time and periodic events """
         self._step_ts = 0
         self._step_dt = 100
         self._food_ts = food_interval
@@ -210,7 +235,7 @@ class Engine:
     def board(self):
         return self._board
 
-    '''Run one iteration of the egine.
+    """Run one iteration of the egine.
 
     Parameters
     ----------
@@ -218,8 +243,9 @@ class Engine:
         A list of tuples (<snake_id>, <direction>] containing the updated
         direction of each included snake. The direction is from the perspective
         of the player and not the snake.
-    '''
-    def step(self, ts: int, inputs: List[Tuple[int, Direction]]=[]) -> State:
+    """
+
+    def step(self, ts: int, inputs: List[Tuple[int, Direction]] = []) -> State:
         # Always update the snake inputs or the game will feel unresponsive
         self._update_snake_inputs(inputs)
 
@@ -238,7 +264,6 @@ class Engine:
         self._view.draw(self._board, self._state)
 
         return self._state
-
 
     def _update_snake_inputs(self, inputs: List[Tuple[int, Direction]]):
         for idx, direction in inputs:
@@ -279,7 +304,7 @@ class Engine:
 
         # Add new food item unless there's already 3 item on the board
         if add_food and len(self._food) < 3:
-            self._food.append(Food(food_coord)) 
+            self._food.append(Food(food_coord))
 
         # Add food items to board
         for food in self._food:
@@ -316,20 +341,20 @@ class Engine:
         return collisions
 
 
-
 import pygame
 from pygame.locals import *
 
-class PyGameView(AbstractView):
 
+class PyGameView(AbstractView):
     def __init__(self, dim: Dimension, screen_sz=Tuple[int, int]):
         super().__init__()
 
-
         self._surface = pygame.display.set_mode((screen_sz[0], 100 + screen_sz[1]))
-        #self._board_surface = self._surface.subsurface(screen_sz)
+        # self._board_surface = self._surface.subsurface(screen_sz)
         self._score_surface = self._surface.subsurface((0, 0, screen_sz[0], 100))
-        self._board_surface = self._surface.subsurface((0, 100, screen_sz[0], screen_sz[1]))
+        self._board_surface = self._surface.subsurface(
+            (0, 100, screen_sz[0], screen_sz[1])
+        )
 
         self._palette: Mapping[Cell, pygame.Color] = {
             Cell.EMPTY: pygame.Color(0, 0, 0),
@@ -346,7 +371,13 @@ class PyGameView(AbstractView):
 
     def _draw_score(self):
         gray = pygame.Color(128, 128, 128)
-        pygame.draw.rect(self._score_surface, gray, Rect(0, 0, self._score_surface.get_width(), self._score_surface.get_height()))
+        pygame.draw.rect(
+            self._score_surface,
+            gray,
+            Rect(
+                0, 0, self._score_surface.get_width(), self._score_surface.get_height()
+            ),
+        )
 
     def _draw_board(self, board: List[List[Cell]]):
         for row_idx, rows in enumerate(board):
@@ -358,4 +389,8 @@ class PyGameView(AbstractView):
                 cell = board[row_idx][col_idx]
                 color = self._palette[cell]
 
-                pygame.draw.rect(self._board_surface, color, Rect(x, y, self._sq_width, self._sq_height))
+                pygame.draw.rect(
+                    self._board_surface,
+                    color,
+                    Rect(x, y, self._sq_width, self._sq_height),
+                )
