@@ -1,4 +1,13 @@
+black @ git+https://github.com/psf/black@ef1048d5f8205cb03358a6a373710c2a71d047b4
+click==8.1.7
+greenlet==3.0.0
+msgpack==1.0.7
 mypy==1.6.0
 mypy-extensions==1.0.0
+packaging==23.2
+pathspec==0.11.2
+platformdirs==3.11.0
+pygame==2.5.2
+pynvim==0.4.3
 tomli==2.0.1
 typing_extensions==4.8.0

@@ -18,11 +18,6 @@ class Coord:
     row: int
 
 
-""" Cell
-"""
-Cell = Enum("cell", ["EMPTY", "SNAKE", "FOOD"])
-
-
 """ Dimension
 """
 
@@ -270,11 +265,13 @@ class Engine:
         for snake in self._snakes:
             if snake.contains(c):
                 return True
+        return False
 
     def _food_at(self, c: Coord) -> bool:
         for food in self._food:
             if food.coord == c:
                 return True
+        return False
 
     def _add_food(self):
         food_coord: Coord
@@ -304,12 +301,12 @@ class Engine:
         if add_food:
             self._add_food()
 
-        collisions = self._collision_detect()
+        collisions = self._detect_collisions()
         game_over = len(collisions) > 0
 
         return State(collisions, game_over)
 
-    def _collision_detect(self) -> List[int]:
+    def _detect_collisions(self) -> List[int]:
         collisions: List[int] = []
 
         for i, snake in enumerate(self._snakes):
@@ -353,14 +350,13 @@ class PyGameView(AbstractView):
             (0, 100, screen_sz[0], screen_sz[1])
         )
 
-        self._palette: Mapping[Cell, pygame.Color] = {
-            Cell.EMPTY: pygame.Color(0, 0, 0),
-            Cell.SNAKE: pygame.Color(0, 255, 0),
-            Cell.FOOD: pygame.Color(255, 0, 0),
-        }
-
         self._sq_width = screen_sz[0] // dim.width
         self._sq_height = screen_sz[1] // dim.height
+
+        self._board_bg_color = pygame.Color(0, 0, 0)
+        self._score_bg_color = pygame.Color(0x10, 0x10, 0x10)
+        self._score_fg_color = pygame.Color(0xFF, 0xFF, 0xFF)
+        self._food_color = pygame.Color(0xFF, 0, 0)
 
     def draw(self, snakes: List[Snake], food: List[Food]):
         self._draw_score(snakes)
@@ -369,26 +365,28 @@ class PyGameView(AbstractView):
         self._draw_food(food)
 
     def _draw_score(self, snakes: List[Snake]):
-        gray = pygame.Color(128, 128, 128)
         pygame.draw.rect(
             self._score_surface,
-            gray,
+            self._score_bg_color,
             Rect(
                 0, 0, self._score_surface.get_width(), self._score_surface.get_height()
             ),
         )
 
         img = self._font.render(
-            f"Score: {snakes[0].points}", True, pygame.Color(255, 255, 255)
+            f"Score: {snakes[0].points}", True, self._score_fg_color
         )
         self._score_surface.blit(img, (20, 20))
 
+    def _snake_color(self, i) -> pygame.Color:
+        return pygame.Color(0, 0xFF, 0)
+
     def _draw_snakes(self, snakes: List[Snake]):
-        for snake in snakes:
+        for i, snake in enumerate(snakes):
             for cell in snake._cells:
                 pygame.draw.rect(
                     self._board_surface,
-                    self._palette[Cell.SNAKE],
+                    self._snake_color(i),
                     Rect(
                         cell.col * self._sq_width,
                         cell.row * self._sq_height,
@@ -401,7 +399,7 @@ class PyGameView(AbstractView):
         for f in food:
             pygame.draw.rect(
                 self._board_surface,
-                self._palette[Cell.FOOD],
+                self._food_color,
                 Rect(
                     f.coord.col * self._sq_width,
                     f.coord.row * self._sq_height,
@@ -413,7 +411,7 @@ class PyGameView(AbstractView):
     def _draw_board(self):
         pygame.draw.rect(
             self._board_surface,
-            self._palette[Cell.EMPTY],
+            self._board_bg_color,
             Rect(
                 0, 0, self._board_surface.get_width(), self._board_surface.get_height()
             ),
