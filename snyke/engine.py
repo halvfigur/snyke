@@ -352,7 +352,7 @@ class GameView(AbstractGameView):
         score_height, score_width = surface.get_height() // 9, surface.get_width()
         board_height, board_width = surface.get_height() * 8 // 9, surface.get_width()
 
-        #self._surface = pygame.display.set_mode((screen_sz[0], 100 + screen_sz[1]))
+        # self._surface = pygame.display.set_mode((screen_sz[0], 100 + screen_sz[1]))
 
         self._score_surface = surface.subsurface((0, 0, score_width, score_height))
         self._board_surface = surface.subsurface(
@@ -429,8 +429,8 @@ class GameView(AbstractGameView):
 
 MenuOption = Tuple[str, str]
 
-class AbstractMenuView:
 
+class AbstractMenuView:
     def __init__(self):
         super().__init__()
 
@@ -443,10 +443,10 @@ from pygame.locals import *
 
 
 class MenuModel:
-
-    def __init__(self,
-                 view: AbstractMenuView,
-                 options: List[MenuOption],
+    def __init__(
+        self,
+        view: AbstractMenuView,
+        options: List[MenuOption],
     ):
         self._view = view
         self._options = options
@@ -460,11 +460,15 @@ class MenuModel:
         self._draw()
 
     def prev(self):
-        self._selected_idx = len(self._options) - 1 if self._selected_idx - 1 < 0 else self._selected_idx - 1
+        self._selected_idx = (
+            len(self._options) - 1
+            if self._selected_idx - 1 < 0
+            else self._selected_idx - 1
+        )
         self._draw()
 
     def _draw(self):
-        print(f'Selected: {self._options[self._selected_idx][1]}')
+        print(f"Selected: {self._options[self._selected_idx][1]}")
         self._view.draw([opt[1] for opt in self._options], self._selected_idx)
 
     def selected(self) -> str:
@@ -472,16 +476,16 @@ class MenuModel:
 
 
 class MenuView(AbstractMenuView):
-
-    def __init__(self,
-            font: pygame.font.Font,
-            surface: pygame.Surface,
+    def __init__(
+        self,
+        font: pygame.font.Font,
+        surface: pygame.Surface,
     ):
         super().__init__()
 
         # Show five options at a time and space options evenly with padding at
         # the top and bottom, this makes 11 "bar"
-        self._bar_height = surface.get_height() // 11 
+        self._bar_height = surface.get_height() // 11
 
         # Let each bar occupy 2/3 of the screen width
         self._bar_width = surface.get_width() * 2 // 3
@@ -491,16 +495,13 @@ class MenuView(AbstractMenuView):
 
         self._bg_color = pygame.Color(0, 0, 0)
         self._bar_bg_color = pygame.Color(0x33, 0x33, 0x33)
-        self._bar_fg_color = pygame.Color(0xff, 0xff, 0xff)
-
+        self._bar_fg_color = pygame.Color(0xFF, 0xFF, 0xFF)
 
     def draw(self, options: List[str], selected: int):
         pygame.draw.rect(
             self._surface,
             self._bg_color,
-            Rect(
-                0, 0, self._surface.get_width(), self._surface.get_height()
-            ),
+            Rect(0, 0, self._surface.get_width(), self._surface.get_height()),
         )
 
         for i, option in enumerate(options):
@@ -511,9 +512,7 @@ class MenuView(AbstractMenuView):
             else:
                 bg_color = self._bg_color
 
-            img = self._font.render(
-                option, True, bg_color
-            )
+            img = self._font.render(option, True, bg_color)
 
             bar_x_offset = (self._surface.get_width() - self._bar_width) // 2
             bar_y_offset = (i + 1) * self._bar_height
@@ -526,15 +525,13 @@ class MenuView(AbstractMenuView):
                     bar_y_offset,
                     self._bar_width,
                     self._bar_height,
-                )
+                ),
             )
 
-            img = self._font.render(
-                option, True, self._bar_fg_color
-            )
+            img = self._font.render(option, True, self._bar_fg_color)
 
             text_x_offset = bar_x_offset + (self._bar_width - img.get_width()) // 2
             text_y_offset = bar_y_offset + (self._bar_height - img.get_height()) // 2
 
-            #self._surface.blit(img, (bar_x_offset, bar_y_offset))
+            # self._surface.blit(img, (bar_x_offset, bar_y_offset))
             self._surface.blit(img, (text_x_offset, text_y_offset))

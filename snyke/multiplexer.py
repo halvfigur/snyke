@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 
 class Action:
-
     def __init__(self, data: Optional[Any] = None):
         self._data = data
 
@@ -20,17 +19,14 @@ class ActionExitGame(Action):
     ...
 
 
-
-
 class Controller:
-
     def __init__(self):
         super().__init__()
         self._nil_action = Action()
 
-    def enter(self, tick: int, data: Any):
+    def enter(self, tick: int, data: Any = None):
         ...
-        
+
     def exit(self, tick: int):
         ...
 
@@ -42,7 +38,7 @@ class Controller:
 
     def up_pressed(self, tick: int) -> Action:
         return self._nil_action
-    
+
     def down_pressed(self, tick: int) -> Action:
         return self._nil_action
 
@@ -59,8 +55,9 @@ from pygame.locals import *
 
 from .engine import GameModel
 from .engine import Direction
-class GameController(Controller):
 
+
+class GameController(Controller):
     def __init__(self, model: GameModel):
         super().__init__()
         self._nil_action = Action()
@@ -70,14 +67,14 @@ class GameController(Controller):
 
     def enter(self, tick: int, data: Any):
         self.update(tick)
-        
+
     def exit(self, tick: int):
         pygame.key.set_repeat(*self._repeat_setting)
 
     def left_pressed(self, tick: int) -> Action:
         self._model.step(tick, [(0, Direction.LEFT)])
         return Action()
-    
+
     def right_pressed(self, tick: int) -> Action:
         self._model.step(tick, [(0, Direction.RIGHT)])
         return Action()
@@ -85,20 +82,20 @@ class GameController(Controller):
     def up_pressed(self, tick: int) -> Action:
         self._model.step(tick, [(0, Direction.UP)])
         return Action()
-    
+
     def down_pressed(self, tick: int) -> Action:
         self._model.step(tick, [(0, Direction.DOWN)])
         return Action()
 
-    def update(self, tick: int) -> Action():
+    def update(self, tick: int) -> Action:
         self._model.step(tick)
         return self._nil_action
 
 
-
 from .engine import MenuModel
-class MenuController(Controller):
 
+
+class MenuController(Controller):
     def __init__(self, model: MenuModel):
         super().__init__()
 
@@ -107,14 +104,14 @@ class MenuController(Controller):
 
     def enter(self, tick: int, *data):
         self._model.refresh()
-        
+
     def exit(self, tick: int):
         pygame.key.set_repeat(*self._repeat_setting)
 
     def up_pressed(self, tick: int) -> Action:
         self._model.prev()
         return Action()
-    
+
     def down_pressed(self, tick: int) -> Action:
         self._model.next()
         return Action()
@@ -130,10 +127,9 @@ class MenuController(Controller):
             case _:
                 # Unreachable
                 return Action()
-    
-    
-class ControllerController:
 
+
+class ControllerController:
     _current: Controller
 
     def __init__(self, menu: MenuController, game: GameController):
@@ -144,7 +140,7 @@ class ControllerController:
         self._game = game
 
         self._current = menu
-        
+
     def enter(self, tick: int):
         self._current.enter(tick)
 
@@ -156,7 +152,7 @@ class ControllerController:
 
     def up_pressed(self, tick: int) -> Action:
         return self._current.up_pressed(tick)
-    
+
     def down_pressed(self, tick: int) -> Action:
         return self._current.down_pressed(tick)
 
@@ -179,7 +175,8 @@ class ControllerController:
     def update(self, tick: int) -> Action:
         return self._current.update(tick)
 
-'''
+
+"""
 class ControllerController:
 
     def __init__(self, controllers: List[Controller]):
@@ -213,4 +210,4 @@ class ControllerController:
 
             pygame.display.flip()
             fps.tick(60)
-'''
+"""
