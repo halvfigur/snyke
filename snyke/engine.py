@@ -5,7 +5,7 @@ from enum import Enum
 
 import random
 import time
-from typing import Mapping, List, Tuple, Optional, overload
+from typing import Mapping, List, Tuple, Optional
 
 
 """Coordinate
@@ -168,20 +168,19 @@ class Snake:
         self._points += 1
 
 
-class AbstractView:
+class AbstractGameView:
     def __init__(self, dim: Dimension):
         super().__init__()
         self._dim = dim
 
-    @overload
     def draw(self, snakes: List[Snake], food: List[Food]):
         raise NotImplemented
 
 
-class Engine:
+class GameModel:
     def __init__(
         self,
-        view: AbstractView,
+        view: AbstractGameView,
         dim: Dimension,
         nsnakes: int,
         snake_len: int,
@@ -303,6 +302,8 @@ class Engine:
 
         collisions = self._detect_collisions()
         game_over = len(collisions) > 0
+        if game_over:
+            print("Game over")
 
         return State(collisions, game_over)
 
@@ -336,22 +337,30 @@ import pygame
 from pygame.locals import *
 
 
-class PyGameView(AbstractView):
+class GameView(AbstractGameView):
     def __init__(
-        self, font: pygame.font.Font, dim: Dimension, screen_sz=Tuple[int, int]
+        self,
+        surface: pygame.Surface,
+        font: pygame.font.Font,
+        dim: Dimension,
     ):
         super().__init__(dim)
         self._font = font
 
-        self._surface = pygame.display.set_mode((screen_sz[0], 100 + screen_sz[1]))
-        # self._board_surface = self._surface.subsurface(screen_sz)
-        self._score_surface = self._surface.subsurface((0, 0, screen_sz[0], 100))
-        self._board_surface = self._surface.subsurface(
-            (0, 100, screen_sz[0], screen_sz[1])
+        # Split surface horizontaly into 9 parts, the first part will display
+        # the score and the remaining eight will display the game
+        score_height, score_width = surface.get_height() // 9, surface.get_width()
+        board_height, board_width = surface.get_height() * 8 // 9, surface.get_width()
+
+        #self._surface = pygame.display.set_mode((screen_sz[0], 100 + screen_sz[1]))
+
+        self._score_surface = surface.subsurface((0, 0, score_width, score_height))
+        self._board_surface = surface.subsurface(
+            (0, score_height, board_width, board_height)
         )
 
-        self._sq_width = screen_sz[0] // dim.width
-        self._sq_height = screen_sz[1] // dim.height
+        self._sq_width = board_width // dim.width
+        self._sq_height = board_height // dim.height
 
         self._board_bg_color = pygame.Color(0, 0, 0)
         self._score_bg_color = pygame.Color(0x10, 0x10, 0x10)
@@ -416,3 +425,116 @@ class PyGameView(AbstractView):
                 0, 0, self._board_surface.get_width(), self._board_surface.get_height()
             ),
         )
+
+
+MenuOption = Tuple[str, str]
+
+class AbstractMenuView:
+
+    def __init__(self):
+        super().__init__()
+
+    def draw(self, options: List[str], selected: int):
+        raise NotImplemented
+
+
+import pygame
+from pygame.locals import *
+
+
+class MenuModel:
+
+    def __init__(self,
+                 view: AbstractMenuView,
+                 options: List[MenuOption],
+    ):
+        self._view = view
+        self._options = options
+        self._selected_idx = 0
+
+    def refresh(self):
+        self._draw()
+
+    def next(self):
+        self._selected_idx = (self._selected_idx + 1) % len(self._options)
+        self._draw()
+
+    def prev(self):
+        self._selected_idx = len(self._options) - 1 if self._selected_idx - 1 < 0 else self._selected_idx - 1
+        self._draw()
+
+    def _draw(self):
+        print(f'Selected: {self._options[self._selected_idx][1]}')
+        self._view.draw([opt[1] for opt in self._options], self._selected_idx)
+
+    def selected(self) -> str:
+        return self._options[self._selected_idx][0]
+
+
+class MenuView(AbstractMenuView):
+
+    def __init__(self,
+            font: pygame.font.Font,
+            surface: pygame.Surface,
+    ):
+        super().__init__()
+
+        # Show five options at a time and space options evenly with padding at
+        # the top and bottom, this makes 11 "bar"
+        self._bar_height = surface.get_height() // 11 
+
+        # Let each bar occupy 2/3 of the screen width
+        self._bar_width = surface.get_width() * 2 // 3
+
+        self._font = font
+        self._surface = surface
+
+        self._bg_color = pygame.Color(0, 0, 0)
+        self._bar_bg_color = pygame.Color(0x33, 0x33, 0x33)
+        self._bar_fg_color = pygame.Color(0xff, 0xff, 0xff)
+
+
+    def draw(self, options: List[str], selected: int):
+        pygame.draw.rect(
+            self._surface,
+            self._bg_color,
+            Rect(
+                0, 0, self._surface.get_width(), self._surface.get_height()
+            ),
+        )
+
+        for i, option in enumerate(options):
+            bg_color: pygame.Color
+
+            if i == selected:
+                bg_color = self._bar_bg_color
+            else:
+                bg_color = self._bg_color
+
+            img = self._font.render(
+                option, True, bg_color
+            )
+
+            bar_x_offset = (self._surface.get_width() - self._bar_width) // 2
+            bar_y_offset = (i + 1) * self._bar_height
+
+            pygame.draw.rect(
+                self._surface,
+                bg_color,
+                Rect(
+                    bar_x_offset,
+                    bar_y_offset,
+                    self._bar_width,
+                    self._bar_height,
+                )
+            )
+
+            img = self._font.render(
+                option, True, self._bar_fg_color
+            )
+
+            text_x_offset = bar_x_offset + (self._bar_width - img.get_width()) // 2
+            text_y_offset = bar_y_offset + (self._bar_height - img.get_height()) // 2
+
+            #self._surface.blit(img, (bar_x_offset, bar_y_offset))
+            self._surface.blit(img, (text_x_offset, text_y_offset))
