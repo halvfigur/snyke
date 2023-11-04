@@ -193,32 +193,39 @@ class GameModel:
         """ View things """
         self._view = view
         self._dim = dim
+        self._nsnakes = nsnakes
+        self._snake_len = snake_len
+        self._food_interval = food_interval
+
+        self.reset()
+
+    def reset(self):
+        """Time and periodic events"""
+        self._step_ts = 0
+        self._step_dt = 100
+        self._food_ts = self._food_interval
+        self._food_dt = self._food_interval
 
         """ Game things """
-        self._next_food = food_interval
+        self._next_food = self._food_interval
 
         """ Snake(s) things """
-        snake_spacing = dim.width // (nsnakes + 1)
-        head_position = (dim.height + snake_len) // 2
+        snake_spacing = self._dim.width // (self._nsnakes + 1)
+        head_position = (self._dim.height + self._snake_len) // 2
         self._snakes = [
             Snake(
-                Coord(snake_spacing * (i + 1), head_position), snake_len, Direction.UP
+                Coord(snake_spacing * (i + 1), head_position),
+                self._snake_len,
+                Direction.UP,
             )
-            for i in range(nsnakes)
+            for i in range(self._nsnakes)
         ]
 
         """ Food things """
         self._food: List[Food] = []
-        self._food_interval = food_interval
 
         """ State things """
         self._state = State([], False)
-
-        """ Time and periodic events """
-        self._step_ts = 0
-        self._step_dt = 100
-        self._food_ts = food_interval
-        self._food_dt = food_interval
 
     @property
     def dim(self):
@@ -302,8 +309,6 @@ class GameModel:
 
         collisions = self._detect_collisions()
         game_over = len(collisions) > 0
-        if game_over:
-            print("Game over")
 
         return State(collisions, game_over)
 
@@ -468,7 +473,6 @@ class MenuModel:
         self._draw()
 
     def _draw(self):
-        print(f"Selected: {self._options[self._selected_idx][1]}")
         self._view.draw([opt[1] for opt in self._options], self._selected_idx)
 
     def selected(self) -> str:

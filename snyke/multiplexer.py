@@ -1,5 +1,6 @@
 from typing import Any, List, Optional
 from dataclasses import dataclass
+from .engine import State
 
 
 class Action:
@@ -16,6 +17,10 @@ class ActionNewGame(Action):
 
 
 class ActionExitGame(Action):
+    ...
+
+
+class ActionGameOver(Action):
     ...
 
 
@@ -65,7 +70,8 @@ class GameController(Controller):
         self._repeat_setting = pygame.key.get_repeat()
         self._model = model
 
-    def enter(self, tick: int, data: Any):
+    def enter(self, tick: int, data: Any = None):
+        self._model.reset()
         self.update(tick)
 
     def exit(self, tick: int):
@@ -88,7 +94,10 @@ class GameController(Controller):
         return Action()
 
     def update(self, tick: int) -> Action:
-        self._model.step(tick)
+        state = self._model.step(tick)
+        if state.is_game_over:
+            return ActionGameOver(state)
+
         return self._nil_action
 
 
@@ -141,28 +150,45 @@ class ControllerController:
 
         self._current = menu
 
+        self._nil_action = Action()
+
     def enter(self, tick: int):
         self._current.enter(tick)
 
     def left_pressed(self, tick: int) -> Action:
-        return self._current.left_pressed(tick)
+        action = self._current.left_pressed(tick)
+        return self._handle_action(tick, action)
 
     def right_pressed(self, tick: int) -> Action:
-        return self._current.right_pressed(tick)
+        action = self._current.right_pressed(tick)
+        return self._handle_action(tick, action)
 
     def up_pressed(self, tick: int) -> Action:
-        return self._current.up_pressed(tick)
+        action = self._current.up_pressed(tick)
+        return self._handle_action(tick, action)
 
     def down_pressed(self, tick: int) -> Action:
-        return self._current.down_pressed(tick)
+        action = self._current.down_pressed(tick)
+        return self._handle_action(tick, action)
 
     def enter_pressed(self, tick: int) -> Action:
         action = self._current.enter_pressed(tick)
+        return self._handle_action(tick, action)
+
+    def update(self, tick: int) -> Action:
+        action = self._current.update(tick)
+        return self._handle_action(tick, action)
+
+    def _handle_action(self, tick: int, action: Action):
         next: Controller
 
         if isinstance(action, ActionNewGame):
             next = self._game
         elif isinstance(action, ActionExitGame):
+            return action
+        elif isinstance(action, ActionGameOver):
+            next = self._menu
+        else:
             return action
 
         if next is not self._current:
@@ -170,10 +196,7 @@ class ControllerController:
             self._current = next
             self._current.enter(tick, action.data)
 
-        return Action()
-
-    def update(self, tick: int) -> Action:
-        return self._current.update(tick)
+        return self._nil_action
 
 
 """
